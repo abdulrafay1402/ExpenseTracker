@@ -105,12 +105,14 @@ class _CsvImportExportScreenState extends ConsumerState<CsvImportExportScreen>
     try {
       final res = await _csvService.importCsv(_pickedFilePath!);
       final imported = res['imported'];
+      final duplicates = res['duplicates'] ?? 0;
       final failed = res['failed'] as List?;
       final total = res['total_rows'] ?? '?';
       setState(() {
         _result = 'Import complete!\n\n'
             'Total rows: $total\n'
             'Imported: $imported\n'
+            'Duplicates skipped: $duplicates\n'
             'Failed: ${failed?.length ?? 0}';
         if (failed != null && failed.isNotEmpty) {
           _result =

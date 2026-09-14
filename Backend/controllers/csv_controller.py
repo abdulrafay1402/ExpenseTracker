@@ -5,43 +5,55 @@ from utils.validators import validate_date
 from schemas.transaction_schema import TransactionCreate
 
 
+def _category_type_error(category, tx_type):
+    """Return an error message if the category type does not match the
+    transaction type, otherwise None (perfective: extracted guard clause)."""
+    if category["type"] != tx_type:
+        return (f"Category '{category['name']}' is type "
+                f"'{category['type']}', not '{tx_type}'")
+    return None
+
+
+def _match_category_name(cat_name, categories):
+    """Case-insensitive category name lookup. Returns (category, error_msg)."""
+    for c in categories:
+        if c["name"].lower() == cat_name.lower():
+            return c, None
+    return None, None  # not found is not an error — caller may fall back to ID
+
+
+def _match_category_id(cat_id_raw, categories):
+    """Numeric category ID lookup. Returns (category, error_msg)."""
+    try:
+        cat_id = int(cat_id_raw)
+    except (ValueError, TypeError):
+        return None, f"Invalid category_id '{cat_id_raw}'"
+    for c in categories:
+        if c["id"] == cat_id:
+            return c, None
+    return None, f"Category ID {cat_id} not found"
+
+
 def _resolve_category(row, tx_type, categories):
     """Resolve category from name or ID. Returns (category_id, error_msg)."""
-    # Build lookup maps
-    name_to_id = {}
-    id_set = set()
-    for c in categories:
-        name_to_id[c["name"].lower()] = c["id"]
-        id_set.add(c["id"])
-
-    # Try category name first (from 'category' column)
     cat_name = row.get("category", "").strip()
     cat_id_raw = row.get("category_id", "").strip()
 
+    # Name takes precedence; fall through to ID when the name is unknown.
+    category = None
     if cat_name:
-        # Case-insensitive match by name
-        matched_id = name_to_id.get(cat_name.lower())
-        if matched_id is not None:
-            # Verify type matches
-            matched_cat = next((c for c in categories if c["id"] == matched_id), None)
-            if matched_cat and matched_cat["type"] != tx_type:
-                return None, f"Category '{cat_name}' is type '{matched_cat['type']}', not '{tx_type}'"
-            return matched_id, None
-        # Name provided but not found — fall through to ID
+        category, _ = _match_category_name(cat_name, categories)
+    if category is None and cat_id_raw:
+        category, err = _match_category_id(cat_id_raw, categories)
+        if err:
+            return None, err
+    if category is None:
+        return None, "Missing category (provide 'category' name or 'category_id')"
 
-    if cat_id_raw:
-        try:
-            cat_id = int(cat_id_raw)
-        except (ValueError, TypeError):
-            return None, f"Invalid category_id '{cat_id_raw}'"
-        if cat_id in id_set:
-            matched_cat = next((c for c in categories if c["id"] == cat_id), None)
-            if matched_cat and matched_cat["type"] != tx_type:
-                return None, f"Category ID {cat_id} is type '{matched_cat['type']}', not '{tx_type}'"
-            return cat_id, None
-        return None, f"Category ID {cat_id} not found"
-
-    return None, "Missing category (provide 'category' name or 'category_id')"
+    err = _category_type_error(category, tx_type)
+    if err:
+        return None, err
+    return category["id"], None
 
 
 def _validate_row(idx, row, categories):
@@ -135,16 +147,30 @@ def analyze_csv(user_id, file_bytes):
 
 
 async def import_csv(user_id, file_bytes):
-    """Parse CSV, validate each row, import valid rows."""
+    """Parse CSV, validate each row, import valid rows, skip duplicates."""
     rows = parse_csv(file_bytes)
     categories = category_model.get_categories(user_id)
     imported = 0
+    duplicates = 0
     failed = []
 
     for idx, row in enumerate(rows, start=2):
         parsed, err = _validate_row(idx, row, categories)
         if err:
             failed.append({"row": idx, "reason": err})
+            continue
+
+        # Duplicate guard: skip rows identical to one already in the DB
+        # (corrective fix — re-importing a file used to duplicate everything).
+        if transaction_model.transaction_exists(
+            user_id,
+            parsed["type"],
+            parsed["category_id"],
+            parsed["amount"],
+            parsed["date"],
+            parsed["description"],
+        ):
+            duplicates += 1
             continue
 
         try:
@@ -161,7 +187,8 @@ async def import_csv(user_id, file_bytes):
         except Exception as e:
             failed.append({"row": idx, "reason": str(e)})
 
-    return {"imported": imported, "failed": failed, "total_rows": len(rows)}
+    return {"imported": imported, "duplicates": duplicates,
+            "failed": failed, "total_rows": len(rows)}
 
 
 def export_csv(user_id):

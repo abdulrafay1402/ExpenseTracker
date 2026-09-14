@@ -15,6 +15,20 @@ class SettingsScreen extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
+              'Categories',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.category_outlined),
+            title: const Text('Manage Categories'),
+            subtitle: const Text('Add, rename or delete your categories'),
+            onTap: () => context.push('/categories/manage'),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
               'Data',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
             ),
