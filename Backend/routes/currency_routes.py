@@ -6,7 +6,7 @@ from controllers import currency_controller
 router = APIRouter(prefix="/currencies", tags=["Currencies"])
 
 
-@router.get("/", response_model=CurrencyListResponse)
+@router.get("", response_model=CurrencyListResponse)
 async def get_currencies():
     return await currency_controller.get_currencies(LOCAL_USER_ID)
 

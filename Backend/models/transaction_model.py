@@ -44,7 +44,7 @@ def get_transactions(user_id, type=None, category_id=None, start_date=None,
         query += " AND description LIKE ?"
         params.append(f"%{search}%")
 
-    query += " ORDER BY date DESC"
+    query += " ORDER BY date DESC, id DESC"
     rows = conn.execute(query, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]

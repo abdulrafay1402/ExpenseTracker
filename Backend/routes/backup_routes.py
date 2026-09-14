@@ -5,7 +5,7 @@ from controllers import backup_controller
 router = APIRouter(prefix="/backup", tags=["Backup"])
 
 
-@router.post("/")
+@router.post("")
 def create_backup():
     return backup_controller.backup_database()
 

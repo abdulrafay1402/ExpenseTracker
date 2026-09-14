@@ -7,14 +7,14 @@ from controllers import budget_controller
 router = APIRouter(prefix="/budget", tags=["Budgets"])
 
 
-@router.post("/", response_model=BudgetResponse)
+@router.post("", response_model=BudgetResponse)
 def set_budget(b: BudgetCreate):
     return budget_controller.set_budget(
         LOCAL_USER_ID, b.category_id, b.amount, b.month, b.year, b.alert_threshold
     )
 
 
-@router.get("/", response_model=list[BudgetResponse])
+@router.get("", response_model=list[BudgetResponse])
 def list_budgets(
     month: Optional[int] = Query(None),
     year: Optional[int] = Query(None)

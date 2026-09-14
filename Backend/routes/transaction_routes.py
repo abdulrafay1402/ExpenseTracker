@@ -7,12 +7,12 @@ from controllers import transaction_controller
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
-@router.post("/", response_model=TransactionResponse)
+@router.post("", response_model=TransactionResponse)
 async def add_transaction(tx: TransactionCreate):
     return await transaction_controller.add_transaction(LOCAL_USER_ID, tx)
 
 
-@router.get("/", response_model=list[TransactionResponse])
+@router.get("", response_model=list[TransactionResponse])
 def list_transactions(
     type: Optional[str] = Query(None),
     category_id: Optional[int] = Query(None),

@@ -7,12 +7,12 @@ from controllers import category_controller
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
-@router.get("/", response_model=list[CategoryResponse])
+@router.get("", response_model=list[CategoryResponse])
 def list_categories(type: Optional[str] = Query(None)):
     return category_controller.list_categories(LOCAL_USER_ID, type=type)
 
 
-@router.post("/", response_model=CategoryResponse)
+@router.post("", response_model=CategoryResponse)
 def add_category(cat: CategoryCreate):
     return category_controller.add_category(LOCAL_USER_ID, cat.name, cat.type)
 
