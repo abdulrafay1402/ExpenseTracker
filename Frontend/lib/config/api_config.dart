@@ -30,6 +30,8 @@ class ApiConfig {
   // CSV endpoints
   static const String csvImport = '/csv/import';
   static const String csvExport = '/csv/export';
+  static const String csvAnalyze = '/csv/analyze';
+  static const String csvGuidelines = '/csv/guidelines';
 
   // Backup endpoints
   static const String backup = '/backup';
