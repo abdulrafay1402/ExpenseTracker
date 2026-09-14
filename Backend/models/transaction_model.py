@@ -50,6 +50,25 @@ def get_transactions(user_id, type=None, category_id=None, start_date=None,
     return [dict(r) for r in rows]
 
 
+def transaction_exists(user_id, type, category_id, amount, date, description):
+    """Check whether an identical transaction already exists (duplicate guard).
+
+    Matches on type, category, amount, date and description (NULL-safe) so a
+    CSV re-import of already-imported rows is detected instead of duplicated.
+    """
+    conn = get_connection()
+    row = conn.execute(
+        """SELECT id FROM transactions
+           WHERE user_id = ? AND type = ? AND category_id = ?
+             AND amount = ? AND date = ? AND voided = 0
+             AND (description IS ? OR description = ?)""",
+        (user_id, type, category_id, amount, date,
+         description, description or "")
+    ).fetchone()
+    conn.close()
+    return row is not None
+
+
 def get_transaction_by_id(user_id, transaction_id):
     """Fetch a single transaction."""
     conn = get_connection()

@@ -13,6 +13,7 @@ import 'screens/reports/category_report_screen.dart';
 import 'screens/reports/monthly_report_screen.dart';
 import 'screens/csv/csv_import_export_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/categories/category_manager_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -75,6 +76,11 @@ final _router = GoRouter(
       path: '/csv',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (_, __) => const CsvImportExportScreen(),
+    ),
+    GoRoute(
+      path: '/categories/manage',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (_, __) => const CategoryManagerScreen(),
     ),
   ],
 );

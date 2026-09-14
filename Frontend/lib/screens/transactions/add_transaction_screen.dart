@@ -32,6 +32,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   }
 
   Future<void> _submit() async {
+    // Re-entry guard: the button disable happens on the next frame, so a fast
+    // double-tap could otherwise fire _submit twice and create a duplicate.
+    if (_submitting) return;
     if (!_formKey.currentState!.validate()) return;
 
     if (_categoryId == null) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../widgets/budget_progress_bar.dart';
+import '../../widgets/error_view.dart';
 
 class BudgetListScreen extends ConsumerStatefulWidget {
   const BudgetListScreen({super.key});
@@ -94,19 +95,9 @@ class _BudgetListScreenState extends ConsumerState<BudgetListScreen> {
                 );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Error loading categories: $e'),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () => ref.invalidate(categoriesProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
+        error: (e, _) => ErrorView(
+          message: 'Error loading categories: $e',
+          onRetry: () => ref.invalidate(categoriesProvider),
         ),
       ),
     );
