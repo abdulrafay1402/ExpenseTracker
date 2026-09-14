@@ -17,19 +17,31 @@ def parse_csv(file_bytes):
 def build_csv(transactions, categories_map):
     """Build CSV string from a list of transaction dicts."""
     output = io.StringIO()
-    fieldnames = ["id", "type", "category", "amount", "currency", "date",
-                  "description", "payment_method_id"]
+    fieldnames = ["type", "category", "category_id", "amount", "currency",
+                  "date", "description"]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
     for tx in transactions:
         writer.writerow({
-            "id": tx["id"],
             "type": tx["type"],
             "category": categories_map.get(tx.get("category_id"), "Unknown"),
+            "category_id": tx.get("category_id", ""),
             "amount": tx["amount"],
             "currency": tx["currency"],
             "date": tx["date"],
             "description": tx.get("description", ""),
-            "payment_method_id": tx.get("payment_method_id", ""),
         })
     return output.getvalue()
+
+
+def get_expected_columns():
+    """Return the expected CSV columns with descriptions."""
+    return {
+        "type": "Required. Must be 'income' or 'expense'.",
+        "category": "Optional. Category name (will be matched to existing categories).",
+        "category_id": "Optional. Category numeric ID (used if category name not found).",
+        "amount": "Required. Positive number (e.g. 1500 or 99.50).",
+        "currency": "Optional. Currency code (defaults to PKR). E.g. PKR, USD, EUR.",
+        "date": "Required. Format: YYYY-MM-DD (e.g. 2025-01-15).",
+        "description": "Optional. Any text description.",
+    }

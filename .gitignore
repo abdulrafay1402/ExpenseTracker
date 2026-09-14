@@ -1,0 +1,78 @@
+# ========================
+# Python / Backend
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Database (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Backup files
+*.bak
+*.backup
+
+# ========================
+# Flutter / Frontend
+# ========================
+Frontend/.dart_tool/
+Frontend/.flutter-plugins
+Frontend/.flutter-plugins-dependencies
+Frontend/.packages
+Frontend/.pub-cache/
+Frontend/.pub/
+Frontend/build/
+Frontend/pubspec.lock
+
+# Android
+Frontend/android/.gradle/
+Frontend/android/app/debug/
+Frontend/android/app/release/
+Frontend/android/app/profile/
+Frontend/android/local.properties
+Frontend/android/gradle-app.setting
+Frontend/android/.idea/
+Frontend/android/captures/
+*.jks
+*.aab
+
+# iOS (if ever added)
+Frontend/ios/Pods/
+Frontend/ios/.symlinks/
+Frontend/ios/Flutter/Flutter.framework
+Frontend/ios/Flutter/Flutter.podspec
+
+# Generated files
+*.g.dart
+*.freezed.dart
