@@ -46,7 +46,11 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
         ],
       ),
     );
-    if (result == null || result.isEmpty) return;
+    if (result == null) return;
+    if (result.isEmpty) {
+      _snack('Please enter a category name');
+      return;
+    }
 
     setState(() => _busy = true);
     try {
@@ -87,7 +91,11 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
         ],
       ),
     );
-    if (result == null || result.isEmpty || result == cat.name) return;
+    if (result == null || result == cat.name) return;
+    if (result.isEmpty) {
+      _snack('Name cannot be empty');
+      return;
+    }
 
     setState(() => _busy = true);
     try {

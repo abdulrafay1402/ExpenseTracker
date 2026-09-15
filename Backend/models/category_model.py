@@ -60,15 +60,30 @@ def update_category(user_id, category_id, name):
 
 
 def delete_category(user_id, category_id):
-    """Delete a category only if no transactions reference it."""
+    """Delete a category only if no active (non-voided) transactions reference it.
+
+    Voided transactions are deleted from the user's perspective, so they must
+    not block category deletion (corrective fix: delete appeared broken when a
+    category was only referenced by already-deleted transactions)."""
     conn = get_connection()
     usage = conn.execute(
-        "SELECT COUNT(*) as cnt FROM transactions WHERE category_id = ? AND user_id = ?",
+        "SELECT COUNT(*) as cnt FROM transactions WHERE category_id = ? AND user_id = ? AND voided = 0",
         (category_id, user_id)
     ).fetchone()
     if usage["cnt"] > 0:
         conn.close()
         return False
+    # Clear the FK on voided (user-deleted) transactions — they must not
+    # block deletion, and the category link is meaningless once removed.
+    conn.execute(
+        "UPDATE transactions SET category_id = NULL WHERE category_id = ? AND user_id = ? AND voided = 1",
+        (category_id, user_id)
+    )
+    # Budgets are per-category, so they go away with the category.
+    conn.execute(
+        "DELETE FROM budgets WHERE category_id = ? AND user_id = ?",
+        (category_id, user_id)
+    )
     conn.execute(
         "DELETE FROM categories WHERE id = ? AND user_id = ?",
         (category_id, user_id)

@@ -21,7 +21,7 @@
 - **Budget Enforcement** — Warns before adding an expense that exceeds its category budget
 - **Visual Reports** — Pie charts (category-wise spending), bar charts (monthly income vs expense), and dashboard summaries
 - **CSV Import/Export** — Analyze CSV structure before importing; export data for backup or external use
-- **Multi-Currency** — Supports multiple currencies with live exchange rates via Frankfurter API
+- **Multi-Currency** — Supports multiple currencies (PKR, SAR, AED, USD and more) with live exchange rates via open.er-api.com
 - **Database Backup/Restore** — Full SQLite backup and restore from the app
 - **Animated Splash Screen** — Custom personalized landing page
 - **Material 3 Design** — Teal theme with dark mode support
