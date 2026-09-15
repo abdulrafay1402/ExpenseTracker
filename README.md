@@ -232,4 +232,4 @@ flutter build apk --release --dart-define=API_BASE_URL=https://your-backend.com
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is for academic and institutional use. Please credit the developers if reused or modified for deployment.
