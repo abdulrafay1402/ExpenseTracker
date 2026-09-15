@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../models/transaction_model.dart';
 import '../../services/transaction_service.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/report_provider.dart';
+import '../../providers/budget_provider.dart';
 
 class TransactionDetailScreen extends ConsumerStatefulWidget {
   final int id;
@@ -59,6 +61,16 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     );
     if (confirm != true) return;
     await ref.read(transactionProvider.notifier).voidTransaction(widget.id);
+    // Refresh dashboard + budget alerts — the dashboard sits in an
+    // IndexedStack and never re-runs initState, so totals would stay stale
+    // after a void otherwise.
+    final now = DateTime.now();
+    ref
+        .read(reportProvider.notifier)
+        .loadDashboard(month: now.month, year: now.year);
+    ref
+        .read(budgetProvider.notifier)
+        .loadAlerts(month: now.month, year: now.year);
     if (context.mounted) context.pop();
   }
 

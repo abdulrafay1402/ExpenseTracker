@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/report_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../services/budget_service.dart';
+import '../../services/currency_service.dart';
 import '../../widgets/currency_dropdown.dart';
 import '../../widgets/category_dropdown.dart';
 
@@ -65,8 +68,21 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           month: _date.month,
           year: _date.year,
         );
+        // Convert to PKR first: spent and budgetLimit are in PKR (base
+        // currency), but amount is in the selected currency — comparing them
+        // raw let e.g. 100 SAR slip past a 5,000 PKR budget unchecked.
+        double amountInPkr = amount;
+        final currency = _currency ?? 'PKR';
+        if (currency != 'PKR') {
+          try {
+            final rate = await CurrencyService().getRate(currency, 'PKR');
+            amountInPkr = amount * rate.rate;
+          } catch (_) {
+            // Rate unavailable — backend re-checks and converts on submit.
+          }
+        }
         // Check if adding this amount would exceed the budget
-        final wouldExceed = (alert.spent + amount) > alert.budgetLimit;
+        final wouldExceed = (alert.spent + amountInPkr) > alert.budgetLimit;
         if (wouldExceed && alert.budgetLimit > 0 && context.mounted) {
           final proceed = await showDialog<bool>(
             context: context,
@@ -85,17 +101,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   const SizedBox(height: 12),
                   _budgetRow('Budget Limit', alert.budgetLimit),
                   _budgetRow('Already Spent', alert.spent),
-                  _budgetRow('This Expense', amount),
+                  _budgetRow('This Expense (PKR)', amountInPkr),
                   const Divider(height: 16),
                   _budgetRow(
                     'Total After',
-                    alert.spent + amount,
+                    alert.spent + amountInPkr,
                     color: Colors.red,
                     bold: true,
                   ),
                   _budgetRow(
                     'Over By',
-                    (alert.spent + amount) - alert.budgetLimit,
+                    (alert.spent + amountInPkr) - alert.budgetLimit,
                     color: Colors.red,
                     bold: true,
                   ),
@@ -134,6 +150,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           );
         }
       } else {
+        // Refresh dashboard + budget alerts so the totals are up to date the
+        // moment we return — the dashboard sits in an IndexedStack (bottom
+        // nav) and never re-runs initState, so it would otherwise keep
+        // showing pre-add numbers.
+        final now = DateTime.now();
+        ref
+            .read(reportProvider.notifier)
+            .loadDashboard(month: now.month, year: now.year);
+        ref
+            .read(budgetProvider.notifier)
+            .loadAlerts(month: now.month, year: now.year);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Transaction added')),

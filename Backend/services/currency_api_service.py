@@ -1,45 +1,54 @@
 import httpx
 from config import CURRENCY_API_BASE
 
-# In-memory cache: lasts for the lifetime of the server process
-_supported_cache = None
+# Curated list for the app's PKR-centric users. open.er-api.com serves 160+
+# currencies (incl. SAR/PKR/AED) but no names endpoint, so names live here.
+SUPPORTED_CURRENCIES = {
+    "PKR": "Pakistani Rupee",
+    "USD": "US Dollar",
+    "EUR": "Euro",
+    "GBP": "British Pound",
+    "SAR": "Saudi Riyal",
+    "AED": "UAE Dirham",
+    "INR": "Indian Rupee",
+    "CNY": "Chinese Yuan",
+    "JPY": "Japanese Yen",
+    "KRW": "South Korean Won",
+    "CAD": "Canadian Dollar",
+    "AUD": "Australian Dollar",
+    "CHF": "Swiss Franc",
+    "TRY": "Turkish Lira",
+    "KWD": "Kuwaiti Dinar",
+    "QAR": "Qatari Riyal",
+    "OMR": "Omani Rial",
+    "BHD": "Bahraini Dinar",
+    "MYR": "Malaysian Ringgit",
+    "THB": "Thai Baht",
+    "SGD": "Singapore Dollar",
+    "RUB": "Russian Ruble",
+}
 
 
 async def get_supported_currencies():
-    """Fetch supported currencies from Frankfurter API. Cached per session."""
-    global _supported_cache
-    if _supported_cache is not None:
-        return _supported_cache
-
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{CURRENCY_API_BASE}/currencies")
-            resp.raise_for_status()
-            _supported_cache = resp.json()
-            return _supported_cache
-    except Exception:
-        # Return a minimal fallback set if API is unreachable
-        return {
-            "PKR": "Pakistani Rupee",
-            "USD": "US Dollar",
-            "EUR": "Euro",
-            "GBP": "British Pound",
-            "AED": "UAE Dirham",
-            "SAR": "Saudi Riyal",
-            "INR": "Indian Rupee"
-        }
+    """Return the currency list shown in the app. Static and offline-safe."""
+    return dict(SUPPORTED_CURRENCIES)
 
 
 async def get_exchange_rate(base, target):
-    """Fetch live exchange rate from Frankfurter. Returns None on failure."""
+    """Fetch live exchange rate from open.er-api.com. Returns None on failure.
+
+    Previous provider (Frankfurter) only served ~30 ECB currencies and
+    rejected SAR/PKR/AED outright, breaking SAR->PKR conversions.
+    """
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"{CURRENCY_API_BASE}/latest",
-                params={"base": base, "symbols": target}
+                f"{CURRENCY_API_BASE}/latest/{base.upper()}"
             )
             resp.raise_for_status()
             data = resp.json()
-            return data["rates"].get(target)
+            if data.get("result") == "success":
+                return data.get("rates", {}).get(target.upper())
+            return None
     except Exception:
         return None
