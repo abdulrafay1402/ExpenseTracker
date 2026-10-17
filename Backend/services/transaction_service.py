@@ -6,7 +6,6 @@ from repositories import (
 from utils.exceptions import ValidationError, NotFoundError
 from utils.validators import validate_date
 from services.currency_api_service import get_exchange_rate
-from config import LOCAL_USER_ID
 
 
 async def add_transaction(user_id, tx_data):

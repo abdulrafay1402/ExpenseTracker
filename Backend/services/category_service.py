@@ -1,5 +1,5 @@
 from repositories import category_repository
-from utils.exceptions import ValidationError, NotFoundError, ConflictError
+from utils.exceptions import NotFoundError, ConflictError
 
 
 def list_categories(user_id, type=None):

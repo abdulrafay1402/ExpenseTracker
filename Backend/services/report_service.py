@@ -1,6 +1,5 @@
 from datetime import datetime
 from repositories import budget_repository, category_repository, transaction_repository
-from utils.exceptions import NotFoundError
 
 
 def get_dashboard(user_id, month=None, year=None):

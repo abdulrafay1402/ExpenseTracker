@@ -57,7 +57,7 @@ def _resolve_category(row, tx_type, categories):
     return category["id"], None
 
 
-def _validate_row(idx, row, categories):
+def _validate_row(row, categories):
     """Validate a single CSV row. Returns (parsed_data, error_msg)."""
     # Type
     tx_type = row.get("type", "").strip().lower()
@@ -126,7 +126,7 @@ def analyze_csv(user_id, file_bytes):
     valid_rows = []
     invalid_rows = []
     for idx, row in enumerate(rows, start=2):
-        parsed, err = _validate_row(idx, row, categories)
+        parsed, err = _validate_row(row, categories)
         if err:
             invalid_rows.append({"row": idx, "reason": err})
         else:
@@ -156,7 +156,7 @@ async def import_csv(user_id, file_bytes):
     failed = []
 
     for idx, row in enumerate(rows, start=2):
-        parsed, err = _validate_row(idx, row, categories)
+        parsed, err = _validate_row(row, categories)
         if err:
             failed.append({"row": idx, "reason": err})
             continue

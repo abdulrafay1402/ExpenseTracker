@@ -30,10 +30,3 @@ def set_setting(user_id, key, value):
         },
         upsert=True,
     )
-
-
-def get_all_settings(user_id):
-    return {
-        setting["key"]: setting["value"]
-        for setting in get_collection("settings").find({"user_id": user_id})
-    }
