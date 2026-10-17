@@ -151,18 +151,19 @@ with model functions; model functions contained SQLite queries.
 Routes → Controllers (request handling + business rules) → SQLite models/SQL
 ```
 
-**After:** routes are the HTTP/controller layer, services contain ExpenseMate
-rules and calculations, repositories own MongoDB queries, and the database
-module owns connection setup and initialization.
+**After:** routes only map HTTP endpoints to dedicated controller modules.
+Controllers call services, services contain ExpenseMate rules and calculations,
+repositories own MongoDB queries, and the database module owns connection setup
+and initialization.
 
 ```text
-Routes/Controllers → Services → Repositories → MongoDB
+Routes → Controllers → Services → Repositories → MongoDB
 ```
 
 The request and response paths for transactions, budgets, categories, reports,
-CSV operations, currencies, and backups now use services/repositories; there are
-no SQLite queries in the active application path. SQLite access remains only in
-the one-time migration utility and its tests.
+CSV operations, currencies, and backups now use all four application layers;
+there are no SQLite queries in the active application path. SQLite access
+remains only in the one-time migration utility and its tests.
 
 **Measured maintainability indicators**
 
@@ -177,22 +178,37 @@ the one-time migration utility and its tests.
   distinct responsibilities—HTTP controller, service, repository, and database.
   This was checked by following the imports from the route modules and verifying
   that services import repositories rather than database clients or SQL code.
+- **Part C rewrites:** `CsvImportExportService` replaces row-matching helpers
+  scattered through a long procedural workflow with one injectable service for
+  analysis, validation, duplicate-safe import, and export. Its public module
+  functions remain as compatibility wrappers for the API. A full rewrite was
+  chosen because parsing decisions and import coordination were interleaved,
+  and isolated helper extraction alone would not make the workflow easy to test.
+  `BudgetService` replaces separately duplicated alert calculations in
+  `check_alert` and `check_all_alerts` with one injectable class and one shared
+  alert rule. A rewrite was chosen to prevent the two public alert paths from
+  drifting and to make the rules unit-testable without MongoDB.
+- **New app feature:** the dashboard displays the five largest expenses for the
+  selected month, ranked by PKR-equivalent amount. The feature uses
+  `/reports/top-expenses`, the report service, MongoDB transaction/category
+  repositories, and a typed Flutter report model.
 - **Automated checks:** run
   `python -m unittest discover -s Backend\tests -p "test*.py" -v`. The current
-  suite contains 17 tests: six migration tests, two MongoDB repository unit
-  tests, and nine API integration tests. API integration tests use mocked
-  repositories; live Atlas smoke checks also exercised the transaction,
-  category, budget, report, and CSV read endpoints.
+  suite contains 24 tests: six migration tests, two MongoDB repository tests,
+  six rewritten-service/feature unit tests, and ten API integration tests. API
+  integration tests use mocked repositories; live Atlas smoke checks also
+  exercised the transaction, category, budget, report, and CSV read endpoints.
 
 **Change log**
 
 | Version/commit | Change | Reason |
 |---|---|---|
 | `9b12fb1` | Added SQLite-to-MongoDB copy utility and PyMongo dependency | Preserve Assignment 01 data in Atlas with repeatable, verified migration |
-| Pending | Replaced SQLite models/controllers with MongoDB repositories and services; switched startup and backup/restore; added tests | Route backend reads/writes through the required layered architecture while preserving API behavior |
+| Pending | Replaced SQLite models with MongoDB repositories; added explicit controllers between routes and services; switched startup and backup/restore | Make MongoDB the active backend database and implement the required dependency flow |
+| Pending | Rewrote `CsvImportExportService` and `BudgetService`; added largest-expenses dashboard report and feature; added unit/integration tests | Separate CSV workflow responsibilities, share budget alert rules, and provide users a monthly high-spend view |
 
-The pending row should be updated with the actual commit ID and version after the
-Assignment 02 changes are committed; do not record a commit hash before then.
+Update pending rows with actual commit IDs and version after the Assignment 02
+changes are committed; do not record commit hashes before then.
 
 ### 2. Run the Flutter App
 
@@ -258,6 +274,7 @@ Transfer the APK to your phone and install it. Both the phone and laptop must be
 | GET | `/reports/category-wise` | Category-wise spending |
 | GET | `/reports/income-vs-expense` | Monthly income vs expense |
 | GET | `/reports/monthly-summary` | Monthly summary stats |
+| GET | `/reports/top-expenses` | Largest expenses for a month |
 | GET | `/currencies` | List supported currencies |
 | GET | `/currencies/rate` | Get exchange rate |
 | POST | `/csv/analyze` | Analyze CSV structure (preview) |

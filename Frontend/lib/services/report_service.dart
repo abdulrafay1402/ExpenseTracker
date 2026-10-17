@@ -14,7 +14,10 @@ class ReportService {
       final res = await _dio.get(ApiConfig.dashboard, queryParameters: params);
       return DashboardModel.fromJson(res.data);
     } on DioException catch (e) {
-      throw ApiException(extractErrorMessage(e), statusCode: e.response?.statusCode);
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
     }
   }
 
@@ -23,10 +26,16 @@ class ReportService {
       final params = <String, dynamic>{};
       if (month != null) params['month'] = month;
       if (year != null) params['year'] = year;
-      final res = await _dio.get(ApiConfig.categoryWise, queryParameters: params);
+      final res = await _dio.get(
+        ApiConfig.categoryWise,
+        queryParameters: params,
+      );
       return CategoryWiseReport.fromJson(res.data);
     } on DioException catch (e) {
-      throw ApiException(extractErrorMessage(e), statusCode: e.response?.statusCode);
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
     }
   }
 
@@ -34,10 +43,16 @@ class ReportService {
     try {
       final params = <String, dynamic>{};
       if (year != null) params['year'] = year;
-      final res = await _dio.get(ApiConfig.monthlyTrend, queryParameters: params);
+      final res = await _dio.get(
+        ApiConfig.monthlyTrend,
+        queryParameters: params,
+      );
       return MonthlyTrendReport.fromJson(res.data);
     } on DioException catch (e) {
-      throw ApiException(extractErrorMessage(e), statusCode: e.response?.statusCode);
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
     }
   }
 
@@ -45,10 +60,16 @@ class ReportService {
     try {
       final params = <String, dynamic>{};
       if (year != null) params['year'] = year;
-      final res = await _dio.get(ApiConfig.incomeVsExpense, queryParameters: params);
+      final res = await _dio.get(
+        ApiConfig.incomeVsExpense,
+        queryParameters: params,
+      );
       return IncomeVsExpenseReport.fromJson(res.data);
     } on DioException catch (e) {
-      throw ApiException(extractErrorMessage(e), statusCode: e.response?.statusCode);
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
     }
   }
 
@@ -57,10 +78,42 @@ class ReportService {
       final params = <String, dynamic>{};
       if (month != null) params['month'] = month;
       if (year != null) params['year'] = year;
-      final res = await _dio.get(ApiConfig.monthlySummary, queryParameters: params);
+      final res = await _dio.get(
+        ApiConfig.monthlySummary,
+        queryParameters: params,
+      );
       return MonthlySummary.fromJson(res.data);
     } on DioException catch (e) {
-      throw ApiException(extractErrorMessage(e), statusCode: e.response?.statusCode);
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
+
+  Future<List<LargestExpenseModel>> getTopExpenses({
+    int? month,
+    int? year,
+  }) async {
+    try {
+      final params = <String, dynamic>{};
+      if (month != null) params['month'] = month;
+      if (year != null) params['year'] = year;
+      final res = await _dio.get(
+        ApiConfig.topExpenses,
+        queryParameters: params,
+      );
+      return (res.data as List)
+          .map(
+            (item) =>
+                LargestExpenseModel.fromJson(item as Map<String, dynamic>),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException(
+        extractErrorMessage(e),
+        statusCode: e.response?.statusCode,
+      );
     }
   }
 }

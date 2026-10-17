@@ -169,6 +169,20 @@ def get_category_wise_spending(user_id, month, year):
     return sorted(rows, key=lambda row: row["total"], reverse=True)
 
 
+def get_month_expense_transactions(user_id, month, year):
+    query = {
+        "user_id": user_id,
+        "type": "expense",
+        "voided": 0,
+        **_month_query(year, month),
+    }
+    return list(
+        get_collection("transactions")
+        .find(query)
+        .sort([("date", -1), ("id", -1)])
+    )
+
+
 def get_monthly_trend(user_id, year):
     query = {
         "user_id": user_id,

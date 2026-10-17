@@ -101,3 +101,41 @@ def monthly_summary(user_id, month=None, year=None):
         "top_expense_category": top_cat["category_name"] if top_cat else None,
         "category_breakdown": cat_data
     }
+
+
+def top_expenses(user_id, month=None, year=None, limit=5):
+    """Return the largest monthly expenses ranked by value in PKR."""
+    if month is None:
+        month = datetime.now().month
+    if year is None:
+        year = datetime.now().year
+
+    transactions = transaction_repository.get_month_expense_transactions(
+        user_id, month, year
+    )
+    categories = {
+        category["id"]: category["name"]
+        for category in category_repository.get_categories(user_id)
+    }
+    ranked = sorted(
+        transactions,
+        key=lambda transaction: (
+            transaction.get("amount", 0)
+            * transaction.get("rate_to_base", 1.0)
+        ),
+        reverse=True,
+    )
+    return [
+        {
+            "id": transaction["id"],
+            "category_name": categories.get(
+                transaction.get("category_id"), "Unknown"
+            ),
+            "base_amount": transaction.get("amount", 0)
+            * transaction.get("rate_to_base", 1.0),
+            "currency": transaction.get("currency", "PKR"),
+            "date": transaction["date"],
+            "description": transaction.get("description"),
+        }
+        for transaction in ranked[:limit]
+    ]

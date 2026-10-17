@@ -54,3 +54,12 @@ class MonthlySummaryResponse(BaseModel):
     transaction_count: int
     top_expense_category: Optional[str] = None
     category_breakdown: List[CategoryWiseItem]
+
+
+class LargestExpenseItem(BaseModel):
+    id: int
+    category_name: str
+    base_amount: float
+    currency: str
+    date: str
+    description: Optional[str] = None

@@ -159,6 +159,30 @@ class ExpenseMateApiIntegrationTests(unittest.TestCase):
         self.assertEqual(response.json()["top_expense_category"], "Food")
         self.assertEqual(response.json()["category_breakdown"][0]["total"], 12000.0)
 
+    def test_top_expenses_feature_returns_ranked_report_items(self):
+        with patch(
+            "services.report_service.top_expenses",
+            return_value=[
+                {
+                    "id": 23,
+                    "category_name": "Travel",
+                    "base_amount": 15000.0,
+                    "currency": "USD",
+                    "date": "2026-10-09",
+                    "description": "Flight",
+                }
+            ],
+        ) as get_top_expenses:
+            response = self.client.get(
+                "/reports/top-expenses?month=10&year=2026"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["category_name"], "Travel")
+        get_top_expenses.assert_called_once_with(
+            LOCAL_USER_ID, month=10, year=2026
+        )
+
     def test_budget_alert_calculates_warning_from_spending(self):
         with (
             patch(
