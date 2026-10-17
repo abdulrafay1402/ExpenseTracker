@@ -93,6 +93,43 @@ Interactive docs at `http://127.0.0.1:8000/docs`.
 
 > The database (`expense.db`) is created automatically on first run with default categories, payment methods, and a local user.
 
+### Migrate SQLite data to MongoDB
+
+ExpenseMate currently runs on SQLite. The migration utility copies its SQLite tables
+into collections in MongoDB, preserving each SQLite primary key as MongoDB `_id`
+and retaining the original columns (including the `id` field). This step copies
+data only; the running backend continues to use SQLite until its repository layer
+is migrated separately.
+
+1. Back up `Backend\expense.db` and install the backend requirements:
+
+   ```powershell
+   cd Backend
+   pip install -r requirements.txt
+   ```
+
+2. Set `MONGO_URI` in `Backend\.env`. Optionally set `MONGO_DATABASE`; otherwise,
+   the migration uses the `expensemate` database.
+3. From the project root, run:
+
+   ```powershell
+   python Backend\scripts\migrate_sqlite_to_mongo.py
+   ```
+
+   To specify a different SQLite file or MongoDB database, use
+   `--sqlite-path path\to\expense.db` and/or `--database database_name`.
+4. Check the printed per-collection source-row and verification counts. The script
+   verifies every copied record and exits with an error if a destination record
+   with the same key contains different data.
+
+The script creates missing collections, inserts missing documents, and is safe
+to rerun when matching documents are already present. It does not delete target
+documents, replace conflicting records, or modify the SQLite source. A failed
+run may have copied some records; rerunning completes those missing records.
+MongoDB access requires network access to the Atlas cluster and a database user
+with permission to create collections and insert/read documents. Keep `.env`
+private and never include the URI in logs or commits.
+
 ### 2. Run the Flutter App
 
 **On Android Emulator:**
