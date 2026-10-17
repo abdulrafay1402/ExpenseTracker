@@ -1,5 +1,4 @@
 from fastapi import APIRouter, UploadFile, File
-from config import LOCAL_USER_ID
 from controllers import backup_controller
 
 router = APIRouter(prefix="/backup", tags=["Backup"])
@@ -7,10 +6,11 @@ router = APIRouter(prefix="/backup", tags=["Backup"])
 
 @router.post("")
 def create_backup():
-    return backup_controller.backup_database()
+    return backup_controller.create_backup()
 
 
 @router.post("/restore")
-async def restore_backup(file: UploadFile = File(...)):
-    file_bytes = await file.read()
-    return backup_controller.restore_database(file_bytes, file.filename)
+async def restore_backup(file: UploadFile | None = File(None)):
+    if file is None:
+        return backup_controller.restore_latest_backup()
+    return await backup_controller.restore_backup(file)

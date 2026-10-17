@@ -1,119 +1,132 @@
-import sqlite3
-from config import DB_PATH, LOCAL_USER_ID
-from datetime import datetime
+"""MongoDB connection and initialization for ExpenseMate."""
+
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
+from config import LOCAL_USER_ID, MONGO_DATABASE, MONGO_URI
+
+_client = None
 
 
-def get_connection():
-    """Return a new connection with row_factory enabled for dict-like access."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+def get_client():
+    """Return the shared MongoDB client, creating it on first use."""
+    global _client
+    if _client is None:
+        if not MONGO_URI:
+            raise RuntimeError(
+                "MONGO_URI is required. Set it in Backend/.env before starting the API."
+            )
+        _client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
+    return _client
+
+
+def get_database():
+    """Return ExpenseMate's configured MongoDB database."""
+    return get_client()[MONGO_DATABASE]
+
+
+def get_collection(name):
+    """Return a collection from the configured MongoDB database."""
+    return get_database()[name]
+
+
+def close_client():
+    """Close the shared client, primarily for application shutdown and tests."""
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None
 
 
 def create_tables():
-    """Create all tables if they don't exist and seed default data."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    """Initialize MongoDB indexes, local user, and default reference data."""
+    database = get_database()
+    try:
+        get_client().admin.command("ping")
+        database.categories.create_index([("user_id", 1), ("id", 1)])
+        database.transactions.create_index(
+            [("user_id", 1), ("voided", 1), ("date", -1), ("id", -1)]
+        )
+        database.budgets.create_index(
+            [("user_id", 1), ("category_id", 1), ("month", 1), ("year", 1)]
+        )
+        database.settings.create_index([("user_id", 1), ("key", 1)], unique=True)
 
-    cursor.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            email TEXT UNIQUE,
-            created_at TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            name TEXT,
-            type TEXT CHECK(type IN ('income','expense')),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS payment_methods (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            name TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            type TEXT CHECK(type IN ('income','expense')),
-            category_id INTEGER,
-            amount REAL,
-            currency TEXT DEFAULT 'PKR',
-            rate_to_base REAL DEFAULT 1.0,
-            date TEXT,
-            description TEXT,
-            payment_method_id INTEGER,
-            created_at TEXT,
-            voided INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (category_id) REFERENCES categories(id),
-            FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS budgets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            category_id INTEGER,
-            amount REAL,
-            month INTEGER,
-            year INTEGER,
-            alert_threshold REAL DEFAULT 80,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (category_id) REFERENCES categories(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            key TEXT,
-            value TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-    """)
-
-    # Seed local user if not exists
-    cursor.execute("SELECT id FROM users WHERE id = ?", (LOCAL_USER_ID,))
-    if not cursor.fetchone():
-        cursor.execute(
-            "INSERT INTO users (id, name, email, created_at) VALUES (?, ?, ?, ?)",
-            (LOCAL_USER_ID, "Local User", "local@expensemate.app", datetime.now().isoformat())
+        database.users.update_one(
+            {"_id": LOCAL_USER_ID},
+            {
+                "$setOnInsert": {
+                    "id": LOCAL_USER_ID,
+                    "name": "Local User",
+                    "email": "local@expensemate.app",
+                }
+            },
+            upsert=True,
         )
 
-    # Seed default categories if none exist for this user
-    cursor.execute("SELECT COUNT(*) as cnt FROM categories WHERE user_id = ?", (LOCAL_USER_ID,))
-    if cursor.fetchone()["cnt"] == 0:
-        income_categories = ["Salary", "Freelance", "Business", "Gift", "Other"]
-        expense_categories = [
-            "Food", "Transport", "Bills", "Shopping", "Entertainment",
-            "Healthcare", "Education", "Rent", "Subscriptions", "Other"
-        ]
-        for name in income_categories:
-            cursor.execute(
-                "INSERT INTO categories (user_id, name, type) VALUES (?, ?, ?)",
-                (LOCAL_USER_ID, name, "income")
-            )
-        for name in expense_categories:
-            cursor.execute(
-                "INSERT INTO categories (user_id, name, type) VALUES (?, ?, ?)",
-                (LOCAL_USER_ID, name, "expense")
-            )
+        if database.categories.count_documents({"user_id": LOCAL_USER_ID}) == 0:
+            categories = [
+                {"name": name, "type": "income"}
+                for name in ["Salary", "Freelance", "Business", "Gift", "Other"]
+            ] + [
+                {"name": name, "type": "expense"}
+                for name in [
+                    "Food", "Transport", "Bills", "Shopping", "Entertainment",
+                    "Healthcare", "Education", "Rent", "Subscriptions", "Other",
+                ]
+            ]
+            for category in categories:
+                category_id = next_id("categories")
+                database.categories.insert_one(
+                    {
+                        "_id": category_id,
+                        "id": category_id,
+                        "user_id": LOCAL_USER_ID,
+                        **category,
+                    }
+                )
 
-    # Seed default payment methods if none exist for this user
-    cursor.execute("SELECT COUNT(*) as cnt FROM payment_methods WHERE user_id = ?", (LOCAL_USER_ID,))
-    if cursor.fetchone()["cnt"] == 0:
-        methods = ["Cash", "Bank", "Credit Card", "Debit Card", "Digital Wallet", "Other"]
-        for name in methods:
-            cursor.execute(
-                "INSERT INTO payment_methods (user_id, name) VALUES (?, ?)",
-                (LOCAL_USER_ID, name)
-            )
+        if database.payment_methods.count_documents({"user_id": LOCAL_USER_ID}) == 0:
+            for name in [
+                "Cash", "Bank", "Credit Card", "Debit Card", "Digital Wallet", "Other"
+            ]:
+                method_id = next_id("payment_methods")
+                database.payment_methods.insert_one(
+                    {
+                        "_id": method_id,
+                        "id": method_id,
+                        "user_id": LOCAL_USER_ID,
+                        "name": name,
+                    }
+                )
 
-    conn.commit()
-    conn.close()
+        for collection_name in (
+            "categories", "payment_methods", "transactions", "budgets", "settings"
+        ):
+            latest = database[collection_name].find_one(
+                {"id": {"$type": "number"}}, sort=[("id", -1)]
+            )
+            if latest:
+                database["_sequences"].update_one(
+                    {"_id": collection_name},
+                    {"$max": {"value": latest["id"]}},
+                    upsert=True,
+                )
+    except PyMongoError as exc:
+        raise RuntimeError(
+            f"Could not initialize MongoDB ({type(exc).__name__}); "
+            "check Atlas availability and database permissions."
+        ) from exc
+
+
+def next_id(collection_name):
+    """Allocate a monotonically increasing integer ID for an existing API."""
+    from pymongo import ReturnDocument
+
+    counter = get_collection("_sequences").find_one_and_update(
+        {"_id": collection_name},
+        {"$inc": {"value": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return counter["value"]

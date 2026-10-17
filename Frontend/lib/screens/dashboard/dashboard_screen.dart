@@ -23,8 +23,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _loadData() async {
     final now = DateTime.now();
     await Future.wait([
-      ref.read(reportProvider.notifier).loadDashboard(month: now.month, year: now.year),
-      ref.read(budgetProvider.notifier).loadAlerts(month: now.month, year: now.year),
+      ref
+          .read(reportProvider.notifier)
+          .loadDashboard(month: now.month, year: now.year),
+      ref
+          .read(reportProvider.notifier)
+          .loadTopExpenses(month: now.month, year: now.year),
+      ref
+          .read(budgetProvider.notifier)
+          .loadAlerts(month: now.month, year: now.year),
     ]);
   }
 
@@ -39,136 +46,184 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: report.isLoading
           ? const Center(child: CircularProgressIndicator())
           : report.error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.cloud_off, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Could not load data',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      report.error!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _loadData,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Summary cards
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 1.6,
                       children: [
-                        Icon(Icons.cloud_off, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Could not load data',
-                          style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                        SummaryCard(
+                          title: 'Income',
+                          value: fmt.format(report.dashboard?.totalIncome ?? 0),
+                          icon: Icons.arrow_downward,
+                          color: Colors.green,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          report.error!,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                          textAlign: TextAlign.center,
+                        SummaryCard(
+                          title: 'Expenses',
+                          value: fmt.format(
+                            report.dashboard?.totalExpenses ?? 0,
+                          ),
+                          icon: Icons.arrow_upward,
+                          color: Colors.red,
                         ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _loadData,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                        SummaryCard(
+                          title: 'Remaining',
+                          value: fmt.format(report.dashboard?.remaining ?? 0),
+                          icon: Icons.account_balance_wallet,
+                          color: Colors.blue,
+                        ),
+                        SummaryCard(
+                          title: 'Transactions',
+                          value: '${report.dashboard?.transactionCount ?? 0}',
+                          icon: Icons.receipt_long,
+                          color: Colors.purple,
                         ),
                       ],
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Summary cards
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          childAspectRatio: 1.6,
+                    const SizedBox(height: 16),
+                    // Top category and budget %
+                    if (report.dashboard?.topExpenseCategory != null)
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.star, color: Colors.amber),
+                          title: const Text('Top Expense Category'),
+                          subtitle: Text(report.dashboard!.topExpenseCategory!),
+                        ),
+                      ),
+                    if (report.topExpenses.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Largest Expenses This Month',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: Column(
                           children: [
-                            SummaryCard(
-                              title: 'Income',
-                              value: fmt.format(report.dashboard?.totalIncome ?? 0),
-                              icon: Icons.arrow_downward,
-                              color: Colors.green,
-                            ),
-                            SummaryCard(
-                              title: 'Expenses',
-                              value: fmt.format(report.dashboard?.totalExpenses ?? 0),
-                              icon: Icons.arrow_upward,
-                              color: Colors.red,
-                            ),
-                            SummaryCard(
-                              title: 'Remaining',
-                              value: fmt.format(report.dashboard?.remaining ?? 0),
-                              icon: Icons.account_balance_wallet,
-                              color: Colors.blue,
-                            ),
-                            SummaryCard(
-                              title: 'Transactions',
-                              value: '${report.dashboard?.transactionCount ?? 0}',
-                              icon: Icons.receipt_long,
-                              color: Colors.purple,
-                            ),
+                            for (final expense in report.topExpenses)
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.trending_up,
+                                  color: Colors.red,
+                                ),
+                                title: Text(expense.categoryName),
+                                subtitle: Text(
+                                  expense.description?.isNotEmpty == true
+                                      ? '${expense.description} · ${expense.date}'
+                                      : expense.date,
+                                ),
+                                trailing: Text(
+                                  fmt.format(expense.baseAmount),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        // Top category and budget %
-                        if (report.dashboard?.topExpenseCategory != null)
-                          Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.star, color: Colors.amber),
-                              title: const Text('Top Expense Category'),
-                              subtitle: Text(report.dashboard!.topExpenseCategory!),
-                            ),
-                          ),
-                        if (report.dashboard?.budgetPercentage != null)
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Budget Usage',
-                                      style: TextStyle(fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  LinearProgressIndicator(
-                                    value: (report.dashboard!.budgetPercentage! / 100)
-                                        .clamp(0.0, 1.0),
-                                    backgroundColor: Colors.grey[200],
-                                    minHeight: 10,
-                                    valueColor: AlwaysStoppedAnimation(
-                                      report.dashboard!.budgetPercentage! >= 90
-                                          ? Colors.red
-                                          : report.dashboard!.budgetPercentage! >= 70
-                                              ? Colors.orange
-                                              : Colors.green,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      '${report.dashboard!.budgetPercentage!.toStringAsFixed(1)}% used'),
-                                ],
+                      ),
+                    ],
+                    if (report.dashboard?.budgetPercentage != null)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Budget Usage',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              LinearProgressIndicator(
+                                value:
+                                    (report.dashboard!.budgetPercentage! / 100)
+                                        .clamp(0.0, 1.0),
+                                backgroundColor: Colors.grey[200],
+                                minHeight: 10,
+                                valueColor: AlwaysStoppedAnimation(
+                                  report.dashboard!.budgetPercentage! >= 90
+                                      ? Colors.red
+                                      : report.dashboard!.budgetPercentage! >=
+                                            70
+                                      ? Colors.orange
+                                      : Colors.green,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${report.dashboard!.budgetPercentage!.toStringAsFixed(1)}% used',
+                              ),
+                            ],
                           ),
-                        const SizedBox(height: 16),
-                        // Budget alerts
-                        if (budgetState.alerts.isNotEmpty) ...[
-                          const Text('Budget Alerts',
-                              style:
-                                  TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          ...budgetState.alerts.map(
-                            (alert) => BudgetProgressBar(
-                              categoryName:
-                                  alert.categoryName ?? 'Category ${alert.categoryId}',
-                              spent: alert.spent,
-                              limit: alert.budgetLimit,
-                              status: alert.status,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    // Budget alerts
+                    if (budgetState.alerts.isNotEmpty) ...[
+                      const Text(
+                        'Budget Alerts',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...budgetState.alerts.map(
+                        (alert) => BudgetProgressBar(
+                          categoryName:
+                              alert.categoryName ??
+                              'Category ${alert.categoryId}',
+                          spent: alert.spent,
+                          limit: alert.budgetLimit,
+                          status: alert.status,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+              ),
+            ),
     );
   }
 }

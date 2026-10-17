@@ -14,12 +14,12 @@ def list_categories(type: Optional[str] = Query(None)):
 
 @router.post("", response_model=CategoryResponse)
 def add_category(cat: CategoryCreate):
-    return category_controller.add_category(LOCAL_USER_ID, cat.name, cat.type)
+    return category_controller.add_category(LOCAL_USER_ID, cat)
 
 
 @router.put("/{category_id}", response_model=CategoryResponse)
 def update_category(category_id: int, cat: CategoryUpdate):
-    return category_controller.update_category(LOCAL_USER_ID, category_id, cat.name)
+    return category_controller.update_category(LOCAL_USER_ID, category_id, cat)
 
 
 @router.delete("/{category_id}")

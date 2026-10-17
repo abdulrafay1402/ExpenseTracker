@@ -10,6 +10,7 @@ class ReportState {
   final MonthlyTrendReport? monthlyTrend;
   final IncomeVsExpenseReport? incomeVsExpense;
   final MonthlySummary? monthlySummary;
+  final List<LargestExpenseModel> topExpenses;
   final bool isLoading;
   final String? error;
 
@@ -19,6 +20,7 @@ class ReportState {
     this.monthlyTrend,
     this.incomeVsExpense,
     this.monthlySummary,
+    this.topExpenses = const [],
     this.isLoading = false,
     this.error,
   });
@@ -29,6 +31,7 @@ class ReportState {
     MonthlyTrendReport? monthlyTrend,
     IncomeVsExpenseReport? incomeVsExpense,
     MonthlySummary? monthlySummary,
+    List<LargestExpenseModel>? topExpenses,
     bool? isLoading,
     String? error,
   }) {
@@ -38,6 +41,7 @@ class ReportState {
       monthlyTrend: monthlyTrend ?? this.monthlyTrend,
       incomeVsExpense: incomeVsExpense ?? this.incomeVsExpense,
       monthlySummary: monthlySummary ?? this.monthlySummary,
+      topExpenses: topExpenses ?? this.topExpenses,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -102,7 +106,17 @@ class ReportNotifier extends Notifier<ReportState> {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  Future<void> loadTopExpenses({int? month, int? year}) async {
+    try {
+      final data = await _service.getTopExpenses(month: month, year: year);
+      state = state.copyWith(topExpenses: data);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
 }
 
-final reportProvider =
-    NotifierProvider<ReportNotifier, ReportState>(ReportNotifier.new);
+final reportProvider = NotifierProvider<ReportNotifier, ReportState>(
+  ReportNotifier.new,
+);

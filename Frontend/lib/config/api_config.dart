@@ -22,6 +22,7 @@ class ApiConfig {
   static const String monthlyTrend = '/reports/monthly';
   static const String incomeVsExpense = '/reports/income-vs-expense';
   static const String monthlySummary = '/reports/monthly-summary';
+  static const String topExpenses = '/reports/top-expenses';
 
   // Currency endpoints
   static const String currencies = '/currencies';

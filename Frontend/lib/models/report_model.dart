@@ -29,6 +29,35 @@ class DashboardModel {
   }
 }
 
+class LargestExpenseModel {
+  final int id;
+  final String categoryName;
+  final double baseAmount;
+  final String currency;
+  final String date;
+  final String? description;
+
+  const LargestExpenseModel({
+    required this.id,
+    required this.categoryName,
+    required this.baseAmount,
+    required this.currency,
+    required this.date,
+    this.description,
+  });
+
+  factory LargestExpenseModel.fromJson(Map<String, dynamic> json) {
+    return LargestExpenseModel(
+      id: json['id'] as int,
+      categoryName: json['category_name'] as String,
+      baseAmount: (json['base_amount'] as num).toDouble(),
+      currency: json['currency'] as String,
+      date: json['date'] as String,
+      description: json['description'] as String?,
+    );
+  }
+}
+
 class CategoryWiseItem {
   final String categoryName;
   final int categoryId;

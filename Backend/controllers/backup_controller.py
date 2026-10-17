@@ -1,26 +1,24 @@
-import os
-import shutil
-import tempfile
-from services.backup_service import create_backup, get_backup_path, restore_from_backup
-from utils.exceptions import NotFoundError, ValidationError
+from zipfile import BadZipFile
+
+from services import backup_service
+from utils.exceptions import ValidationError
 
 
-def backup_database():
-    """Create a backup copy of the database."""
-    path = create_backup()
-    return {"detail": "Backup created successfully.", "path": path}
+def create_backup():
+    return backup_service.backup_database()
 
 
-def restore_database(file_bytes, filename):
-    """Restore the database from an uploaded backup file."""
-    # Write uploaded file to a temp location, then restore
-    temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, f"restore_{filename}")
+def restore_latest_backup():
     try:
-        with open(temp_path, "wb") as f:
-            f.write(file_bytes)
-        restore_from_backup(temp_path)
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-    return {"detail": "Database restored successfully from backup."}
+        return backup_service.restore_latest_backup()
+    except (ValueError, BadZipFile) as exc:
+        raise ValidationError(f"Invalid backup archive: {exc}") from exc
+
+
+async def restore_backup(upload):
+    try:
+        return backup_service.restore_database(
+            await upload.read(), upload.filename
+        )
+    except (ValueError, BadZipFile) as exc:
+        raise ValidationError(f"Invalid backup archive: {exc}") from exc

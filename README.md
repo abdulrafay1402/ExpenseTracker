@@ -81,6 +81,12 @@ ExpenseTracker/
 
 ### 1. Start the Backend
 
+Set `MONGO_URI` in `Backend\.env` to your MongoDB Atlas connection URI. The app
+uses the `expensemate` database by default; set `MONGO_DATABASE` to override it.
+Do not commit `.env` or include the URI in logs or screenshots. On startup, the
+backend connects to MongoDB, initializes its indexes and any missing default
+data, and then serves requests from MongoDB.
+
 ```powershell
 cd Backend
 pip install -r requirements.txt
@@ -90,7 +96,118 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 The API will be available at `http://127.0.0.1:8000`.  
 Interactive docs at `http://127.0.0.1:8000/docs`.
 
-> The database (`expense.db`) is created automatically on first run with default categories, payment methods, and a local user.
+> The migrated SQLite file is retained as the source/backup; the active backend
+uses MongoDB after the repository migration.
+
+### Migrate SQLite data to MongoDB
+
+The migration utility copies the six SQLite tables into MongoDB collections,
+preserving each SQLite primary key as MongoDB `_id` and retaining the original
+columns (including the `id` field). The backend now uses MongoDB through its
+repository layer; new app records are written to MongoDB, not SQLite.
+
+1. Back up `Backend\expense.db` and install the backend requirements:
+
+   ```powershell
+   cd Backend
+   pip install -r requirements.txt
+   ```
+
+2. Set `MONGO_URI` in `Backend\.env`. Optionally set `MONGO_DATABASE`; otherwise,
+   the migration uses the `expensemate` database.
+3. From the project root, run:
+
+   ```powershell
+   python Backend\scripts\migrate_sqlite_to_mongo.py
+   ```
+
+   To specify a different SQLite file or MongoDB database, use
+   `--sqlite-path path\to\expense.db` and/or `--database database_name`.
+4. Check the printed per-collection source-row and verification counts. The script
+   verifies every copied record and exits with an error if a destination record
+   with the same key contains different data.
+
+The script creates missing collections, inserts missing documents, and is safe
+to rerun when matching documents are already present. It does not delete target
+documents, replace conflicting records, or modify the SQLite source. A failed
+run may have copied some records; rerunning completes those missing records.
+MongoDB access requires network access to the Atlas cluster and a database user
+with permission to create collections and insert/read documents. Keep `.env`
+private and never include the URI in logs or commits.
+
+The application uses MongoDB repositories for transactions, categories,
+budgets, settings, payment methods, and users. MongoDB does not enforce the
+SQLite foreign keys; the service layer validates category references, and
+integer IDs continue through a MongoDB sequence collection for API compatibility.
+Database backups are exported as Extended JSON ZIP archives.
+
+### Assignment 02 architecture and evidence
+
+**Before:** HTTP routes called controller modules that mixed business rules
+with model functions; model functions contained SQLite queries.
+
+```text
+Routes → Controllers (request handling + business rules) → SQLite models/SQL
+```
+
+**After:** routes only map HTTP endpoints to dedicated controller modules.
+Controllers call services, services contain ExpenseMate rules and calculations,
+repositories own MongoDB queries, and the database module owns connection setup
+and initialization.
+
+```text
+Routes → Controllers → Services → Repositories → MongoDB
+```
+
+The request and response paths for transactions, budgets, categories, reports,
+CSV operations, currencies, and backups now use all four application layers;
+there are no SQLite queries in the active application path. SQLite access
+remains only in the one-time migration utility and its tests.
+
+**Measured maintainability indicators**
+
+- **Database separation:** before the migration/refactor, six domain model
+  modules contained SQLite query logic, in addition to SQLite setup/queries in
+  `models/database.py`; after it, zero runtime application modules execute SQL.
+  This was checked by searching backend Python files for `sqlite3` and SQL
+  `execute` calls; the remaining matches are limited to the migration utility
+  and migration tests.
+- **Dependency separation:** the old path had route/controller/model layers,
+  with business logic inside controllers; the new runtime path has four
+  distinct responsibilities—HTTP controller, service, repository, and database.
+  This was checked by following the imports from the route modules and verifying
+  that services import repositories rather than database clients or SQL code.
+- **Part C rewrites:** `CsvImportExportService` replaces row-matching helpers
+  scattered through a long procedural workflow with one injectable service for
+  analysis, validation, duplicate-safe import, and export. Its public module
+  functions remain as compatibility wrappers for the API. A full rewrite was
+  chosen because parsing decisions and import coordination were interleaved,
+  and isolated helper extraction alone would not make the workflow easy to test.
+  `BudgetService` replaces separately duplicated alert calculations in
+  `check_alert` and `check_all_alerts` with one injectable class and one shared
+  alert rule. A rewrite was chosen to prevent the two public alert paths from
+  drifting and to make the rules unit-testable without MongoDB.
+- **New app feature:** the dashboard displays the five largest expenses for the
+  selected month, ranked by PKR-equivalent amount. The feature uses
+  `/reports/top-expenses`, the report service, MongoDB transaction/category
+  repositories, and a typed Flutter report model.
+- **Automated checks:** run
+  `python -m unittest discover -s Backend\tests -p "test*.py" -v`. The current
+  suite contains 24 tests: six migration tests, two MongoDB repository tests,
+  six rewritten-service/feature unit tests, and ten API integration tests. API
+  integration tests use mocked repositories; live Atlas smoke checks also
+  exercised the transaction, category, budget, report, and CSV read endpoints.
+
+**Change log**
+
+| Version/commit | Change | Reason |
+|---|---|---|
+| `9b12fb1` | Added SQLite-to-MongoDB copy utility and PyMongo dependency | Preserve Assignment 01 data in Atlas with repeatable, verified migration |
+| Pending | Replaced SQLite models with MongoDB repositories; added explicit controllers between routes and services; switched startup and backup/restore | Make MongoDB the active backend database and implement the required dependency flow |
+| Pending | Rewrote `CsvImportExportService` and `BudgetService`; added largest-expenses dashboard report and feature; added unit/integration tests | Separate CSV workflow responsibilities, share budget alert rules, and provide users a monthly high-spend view |
+
+Update pending rows with actual commit IDs and version after the Assignment 02
+changes are committed; do not record commit hashes before then.
 
 ### 2. Run the Flutter App
 
@@ -156,6 +273,7 @@ Transfer the APK to your phone and install it. Both the phone and laptop must be
 | GET | `/reports/category-wise` | Category-wise spending |
 | GET | `/reports/income-vs-expense` | Monthly income vs expense |
 | GET | `/reports/monthly-summary` | Monthly summary stats |
+| GET | `/reports/top-expenses` | Largest expenses for a month |
 | GET | `/currencies` | List supported currencies |
 | GET | `/currencies/rate` | Get exchange rate |
 | POST | `/csv/analyze` | Analyze CSV structure (preview) |

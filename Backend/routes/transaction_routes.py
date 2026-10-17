@@ -33,7 +33,9 @@ def get_transaction(transaction_id: int):
 
 @router.put("/{transaction_id}", response_model=TransactionResponse)
 async def update_transaction(transaction_id: int, tx: TransactionUpdate):
-    return await transaction_controller.update_transaction(LOCAL_USER_ID, transaction_id, tx)
+    return await transaction_controller.update_transaction(
+        LOCAL_USER_ID, transaction_id, tx
+    )
 
 
 @router.delete("/{transaction_id}", response_model=TransactionResponse)
