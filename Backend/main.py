@@ -1,14 +1,23 @@
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import FastAPI
-from models.database import create_tables
+from models.database import close_client, create_tables
 from routes import (
     transaction_routes, category_routes, budget_routes,
     report_routes, currency_routes, csv_routes, backup_routes
 )
 
-app = FastAPI(title="ExpenseMate API")
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    create_tables()
+    try:
+        yield
+    finally:
+        close_client()
 
-# Create tables and seed data on startup
-create_tables()
+
+app = FastAPI(title="ExpenseMate API", lifespan=lifespan)
 
 # Include all routers
 app.include_router(transaction_routes.router)

@@ -1,5 +1,5 @@
 from services.currency_api_service import get_supported_currencies, get_exchange_rate
-from models import settings_model
+from repositories import settings_repository
 from utils.exceptions import ValidationError
 
 
@@ -20,11 +20,11 @@ async def get_rate(user_id, base, target):
     rate = await get_exchange_rate(base, target)
     if rate is not None:
         # Cache for fallback
-        settings_model.set_setting(user_id, f"rate_{base}_{target}", str(rate))
+        settings_repository.set_setting(user_id, f"rate_{base}_{target}", str(rate))
         return {"base": base, "target": target, "rate": rate}
 
     # Fallback to cached rate
-    cached = settings_model.get_setting(user_id, f"rate_{base}_{target}")
+    cached = settings_repository.get_setting(user_id, f"rate_{base}_{target}")
     if cached:
         return {"base": base, "target": target, "rate": float(cached)}
 

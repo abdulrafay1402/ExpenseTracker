@@ -1,8 +1,9 @@
-from models import transaction_model, category_model
-from controllers.transaction_controller import add_transaction
+from repositories import category_repository, transaction_repository
+from services.transaction_service import add_transaction
 from utils.csv_handler import parse_csv, build_csv, get_expected_columns
 from utils.validators import validate_date
 from schemas.transaction_schema import TransactionCreate
+from fastapi import HTTPException
 
 
 def _category_type_error(category, tx_type):
@@ -103,7 +104,7 @@ def _validate_row(idx, row, categories):
 def analyze_csv(user_id, file_bytes):
     """Analyze CSV without importing — returns structure info and preview."""
     rows = parse_csv(file_bytes)
-    categories = category_model.get_categories(user_id)
+    categories = category_repository.get_categories(user_id)
 
     # Column analysis
     if not rows:
@@ -149,7 +150,7 @@ def analyze_csv(user_id, file_bytes):
 async def import_csv(user_id, file_bytes):
     """Parse CSV, validate each row, import valid rows, skip duplicates."""
     rows = parse_csv(file_bytes)
-    categories = category_model.get_categories(user_id)
+    categories = category_repository.get_categories(user_id)
     imported = 0
     duplicates = 0
     failed = []
@@ -162,7 +163,7 @@ async def import_csv(user_id, file_bytes):
 
         # Duplicate guard: skip rows identical to one already in the DB
         # (corrective fix — re-importing a file used to duplicate everything).
-        if transaction_model.transaction_exists(
+        if transaction_repository.transaction_exists(
             user_id,
             parsed["type"],
             parsed["category_id"],
@@ -184,7 +185,7 @@ async def import_csv(user_id, file_bytes):
             )
             await add_transaction(user_id, tx_data)
             imported += 1
-        except Exception as e:
+        except HTTPException as e:
             failed.append({"row": idx, "reason": str(e)})
 
     return {"imported": imported, "duplicates": duplicates,
@@ -193,7 +194,7 @@ async def import_csv(user_id, file_bytes):
 
 def export_csv(user_id):
     """Export all non-voided transactions as CSV string."""
-    transactions = transaction_model.get_transactions(user_id)
-    categories = category_model.get_categories(user_id)
+    transactions = transaction_repository.get_transactions(user_id)
+    categories = category_repository.get_categories(user_id)
     cat_map = {c["id"]: c["name"] for c in categories}
     return build_csv(transactions, cat_map)

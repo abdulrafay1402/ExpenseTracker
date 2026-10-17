@@ -1,4 +1,8 @@
-from models import transaction_model, category_model, settings_model
+from repositories import (
+    category_repository,
+    settings_repository,
+    transaction_repository,
+)
 from utils.exceptions import ValidationError, NotFoundError
 from utils.validators import validate_date
 from services.currency_api_service import get_exchange_rate
@@ -12,7 +16,9 @@ async def add_transaction(user_id, tx_data):
         raise ValidationError("Invalid date format. Use YYYY-MM-DD.")
 
     # Validate category exists and type matches
-    if not category_model.category_exists(user_id, tx_data.category_id, tx_data.type):
+    if not category_repository.category_exists(
+        user_id, tx_data.category_id, tx_data.type
+    ):
         raise ValidationError(
             f"Category {tx_data.category_id} does not exist or type mismatch for '{tx_data.type}'."
         )
@@ -26,7 +32,7 @@ async def add_transaction(user_id, tx_data):
         if rate is None:
             # Fallback: check settings for last known rate
             fallback_key = f"rate_{tx_data.currency.upper()}_{base_currency}"
-            cached = settings_model.get_setting(user_id, fallback_key)
+            cached = settings_repository.get_setting(user_id, fallback_key)
             if cached:
                 rate = float(cached)
             else:
@@ -35,13 +41,13 @@ async def add_transaction(user_id, tx_data):
                 )
         else:
             # Cache the rate for future fallback
-            settings_model.set_setting(
+            settings_repository.set_setting(
                 user_id,
                 f"rate_{tx_data.currency.upper()}_{base_currency}",
                 str(rate)
             )
 
-    record = transaction_model.add_transaction(
+    record = transaction_repository.add_transaction(
         user_id=user_id,
         type=tx_data.type,
         category_id=tx_data.category_id,
@@ -58,7 +64,7 @@ async def add_transaction(user_id, tx_data):
 def list_transactions(user_id, type=None, category_id=None, start_date=None,
                       end_date=None, search=None):
     """List transactions with optional filters."""
-    return transaction_model.get_transactions(
+    return transaction_repository.get_transactions(
         user_id, type=type, category_id=category_id,
         start_date=start_date, end_date=end_date, search=search
     )
@@ -66,7 +72,7 @@ def list_transactions(user_id, type=None, category_id=None, start_date=None,
 
 def get_transaction(user_id, transaction_id):
     """Get a single transaction by ID."""
-    tx = transaction_model.get_transaction_by_id(user_id, transaction_id)
+    tx = transaction_repository.get_transaction_by_id(user_id, transaction_id)
     if not tx:
         raise NotFoundError(f"Transaction {transaction_id} not found.")
     return tx
@@ -74,7 +80,7 @@ def get_transaction(user_id, transaction_id):
 
 async def update_transaction(user_id, transaction_id, update_data):
     """Validate and update a transaction."""
-    existing = transaction_model.get_transaction_by_id(user_id, transaction_id)
+    existing = transaction_repository.get_transaction_by_id(user_id, transaction_id)
     if not existing:
         raise NotFoundError(f"Transaction {transaction_id} not found.")
 
@@ -95,13 +101,17 @@ async def update_transaction(user_id, transaction_id, update_data):
 
     # If type changed, validate category still matches
     if "type" in fields and fields["type"] and "category_id" in fields and fields["category_id"]:
-        if not category_model.category_exists(user_id, fields["category_id"], fields["type"]):
+        if not category_repository.category_exists(
+            user_id, fields["category_id"], fields["type"]
+        ):
             raise ValidationError("Category type mismatch.")
 
     if "date" in fields and fields["date"] and not validate_date(fields["date"]):
         raise ValidationError("Invalid date format. Use YYYY-MM-DD.")
 
-    result = transaction_model.update_transaction(user_id, transaction_id, **fields)
+    result = transaction_repository.update_transaction(
+        user_id, transaction_id, **fields
+    )
     if not result:
         raise NotFoundError(f"Transaction {transaction_id} not found after update.")
     return result
@@ -109,7 +119,7 @@ async def update_transaction(user_id, transaction_id, update_data):
 
 def void_transaction(user_id, transaction_id):
     """Soft-delete a transaction."""
-    existing = transaction_model.get_transaction_by_id(user_id, transaction_id)
+    existing = transaction_repository.get_transaction_by_id(user_id, transaction_id)
     if not existing:
         raise NotFoundError(f"Transaction {transaction_id} not found.")
-    return transaction_model.void_transaction(user_id, transaction_id)
+    return transaction_repository.void_transaction(user_id, transaction_id)

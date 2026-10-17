@@ -1,5 +1,5 @@
 from datetime import datetime
-from models import transaction_model, category_model, budget_model
+from repositories import budget_repository, category_repository, transaction_repository
 from utils.exceptions import NotFoundError
 
 
@@ -10,11 +10,11 @@ def get_dashboard(user_id, month=None, year=None):
     if year is None:
         year = datetime.now().year
 
-    totals = transaction_model.get_dashboard_totals(user_id, month, year)
-    top_cat = category_model.get_top_expense_category(user_id, month, year)
+    totals = transaction_repository.get_dashboard_totals(user_id, month, year)
+    top_cat = category_repository.get_top_expense_category(user_id, month, year)
 
     # Calculate overall budget percentage
-    budgets = budget_model.get_budgets(user_id, month=month, year=year)
+    budgets = budget_repository.get_budgets(user_id, month=month, year=year)
     total_budget = sum(b["amount"] for b in budgets)
     budget_pct = None
     if total_budget > 0:
@@ -37,7 +37,7 @@ def category_wise_report(user_id, month=None, year=None):
     if year is None:
         year = datetime.now().year
 
-    data = transaction_model.get_category_wise_spending(user_id, month, year)
+    data = transaction_repository.get_category_wise_spending(user_id, month, year)
     return {
         "month": month,
         "year": year,
@@ -50,7 +50,7 @@ def monthly_trend(user_id, year=None):
     if year is None:
         year = datetime.now().year
 
-    data = transaction_model.get_monthly_trend(user_id, year)
+    data = transaction_repository.get_monthly_trend(user_id, year)
     return {
         "year": year,
         "data": data
@@ -62,7 +62,7 @@ def income_vs_expense(user_id, year=None):
     if year is None:
         year = datetime.now().year
 
-    raw = transaction_model.get_income_vs_expense(user_id, year)
+    raw = transaction_repository.get_income_vs_expense(user_id, year)
 
     # Pivot into per-month entries
     monthly = {}
@@ -88,9 +88,9 @@ def monthly_summary(user_id, month=None, year=None):
     if year is None:
         year = datetime.now().year
 
-    totals = transaction_model.get_dashboard_totals(user_id, month, year)
-    top_cat = category_model.get_top_expense_category(user_id, month, year)
-    cat_data = transaction_model.get_category_wise_spending(user_id, month, year)
+    totals = transaction_repository.get_dashboard_totals(user_id, month, year)
+    top_cat = category_repository.get_top_expense_category(user_id, month, year)
+    cat_data = transaction_repository.get_category_wise_spending(user_id, month, year)
 
     return {
         "month": month,
